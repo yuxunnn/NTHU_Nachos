@@ -221,6 +221,13 @@ Thread::Yield ()
     
     DEBUG(dbgThread, "Yielding thread: " << name);
 
+    // MP3
+    // calculate burst and remain time
+    kernel->currentThread->IncreaseAccuTicks();
+    kernel->currentThread->IncreaseCpuBurstTime();
+    kernel->currentThread->UpdateApproxRemainTime();
+    kernel->currentThread->setCpuStartTime(kernel->stats->totalTicks);   // Because we have to keep accumulate burst time
+
     nextThread = kernel->scheduler->FindNextToRun();
 
     if (nextThread != NULL) {
