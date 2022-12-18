@@ -265,17 +265,20 @@ Thread::Sleep (bool finishing)
     status = BLOCKED;
     
     // MP3
-    // Only update approximate burst time from running to waiting
     this->IncreaseAccuTicks();
     this->IncreaseCpuBurstTime();
-    this->UpdateApproxBurstTime();
-    // clear cpu burst time from running to waiting
-    this->setCpuBurstTime(0); 
+    // Only update approximate burst time from running to waiting
+    if (!finishing) {
+        this->UpdateApproxBurstTime();
+    }
 
 	//cout << "debug Thread::Sleep " << name << "wait for Idle\n";
     while ((nextThread = kernel->scheduler->FindNextToRun()) == NULL) {
 		kernel->interrupt->Idle();	// no one to run, wait for an interrupt
-	}    
+	}
+
+    // clear cpu burst time from running to waiting
+    this->setCpuBurstTime(0); 
     
 
     // returns when it's time for us to run
@@ -327,7 +330,7 @@ Thread::UpdateApproxBurstTime()
 void 
 Thread::ContextSwitch(int newThreadId)
 {
-    DEBUG(z, "[E] Tick [" << kernel->stats->totalTicks << "]: Thread [" << newThreadId << "] is now selected for execution, thread [" << ID << "] is replaced, and it has executed [" << accuTicks << "] ticks");
+    DEBUG(z, "[E] Tick [" << kernel->stats->totalTicks << "]: Thread [" << newThreadId << "] is now selected for execution, thread [" << ID << "] is replaced, and it has executed [" << cpuBurstTime << "] ticks");
 }
 
 // MP3

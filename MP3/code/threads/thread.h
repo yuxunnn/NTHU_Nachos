@@ -112,6 +112,7 @@ class Thread {
     int getQueueLevel() { return queueLevel; }
     int getStartWaitingTime() { return startWaitingTime; }
     int getTotalWaitingTime() { return totalWaitingTime; }
+    double getAccuTicks() { return accuTicks; }
 
     double getCpuStartTime() { return cpuStartTime; }
     double getCpuBurstTime() { return cpuBurstTime; }

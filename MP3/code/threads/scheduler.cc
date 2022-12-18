@@ -375,7 +375,7 @@ Scheduler::CheckPreemptive()
         if (!L2->IsEmpty()) {
             return TRUE;
         }
-        if (!L3->IsEmpty()) {
+        if (!L3->IsEmpty() && currThread->getAccuTicks() >= 100) {
             return TRUE;
         }
     }
