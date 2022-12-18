@@ -31,14 +31,26 @@ class Scheduler {
     void CheckToBeDestroyed();// Check if thread that had been
     				// running needs to be deleted
     void Print();		// Print contents of ready list
+
+    // MP3
+    int Aging();
+    // Thread* CheckPreemptive();
+    bool CheckPreemptive();
     
     // SelfTest for scheduler is implemented in class Thread
     
   private:
+
     List<Thread *> *readyList;  // queue of threads that are ready to run,
 				// but not running
+    // MP3
+    SortedList<Thread *> *L1;
+    SortedList<Thread *> *L2;
+    List<Thread *> *L3;
+
     Thread *toBeDestroyed;	// finishing thread to be destroyed
     				// by the next thread that runs
+
 };
 
 #endif // SCHEDULER_H

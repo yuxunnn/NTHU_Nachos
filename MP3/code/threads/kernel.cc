@@ -77,6 +77,12 @@ Kernel::Kernel(int argc, char **argv)
 #endif
             cout << "Partial usage: nachos [-n #] [-m #]\n";
 		}
+
+        // MP3
+        else if (strcmp(argv[i], "-ep") == 0){
+            execfile[++execfileNum]= argv[++i];
+            priorities[execfileNum] = atoi(argv[++i]);
+        }
     }
 }
 
@@ -113,8 +119,8 @@ Kernel::Initialize()
 #else
     fileSystem = new FileSystem(formatFlag);
 #endif // FILESYS_STUB
-    postOfficeIn = new PostOfficeInput(10);
-    postOfficeOut = new PostOfficeOutput(reliability);
+    // postOfficeIn = new PostOfficeInput(10);
+    // postOfficeOut = new PostOfficeOutput(reliability);
 
     interrupt->Enable();
 }
@@ -135,8 +141,8 @@ Kernel::~Kernel()
     delete synchConsoleOut;
     delete synchDisk;
     delete fileSystem;
-    delete postOfficeIn;
-    delete postOfficeOut;
+    // delete postOfficeIn;
+    // delete postOfficeOut;
     
     Exit(0);
 }
@@ -263,16 +269,24 @@ void ForkExecute(Thread *t)
 void Kernel::ExecAll()
 {
 	for (int i=1;i<=execfileNum;i++) {
-		int a = Exec(execfile[i]);
+		// int a = Exec(execfile[i]);
+
+        // MP3
+        int a = Exec(execfile[i], priorities[i]);
 	}
 	currentThread->Finish();
     //Kernel::Exec();	
 }
 
-
-int Kernel::Exec(char* name)
+// MP3
+// int Kernel::Exec(char* name)
+int Kernel::Exec(char* name, int priority)
 {
-	t[threadNum] = new Thread(name, threadNum);
+	// t[threadNum] = new Thread(name, threadNum);
+    // MP3
+    t[threadNum] = new Thread(name, threadNum);
+    t[threadNum]->setPriority(priority);
+
 	t[threadNum]->space = new AddrSpace();
 	t[threadNum]->Fork((VoidFunctionPtr) &ForkExecute, (void *)t[threadNum]);
 	threadNum++;

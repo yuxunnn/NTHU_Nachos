@@ -153,10 +153,10 @@ Interrupt::OneTick()
 // advance simulated time
     if (status == SystemMode) {
         stats->totalTicks += SystemTick;
-	stats->systemTicks += SystemTick;
+	    stats->systemTicks += SystemTick;
     } else {
-	stats->totalTicks += UserTick;
-	stats->userTicks += UserTick;
+        stats->totalTicks += UserTick;
+        stats->userTicks += UserTick;
     }
     DEBUG(dbgInt, "== Tick " << stats->totalTicks << " ==");
 
@@ -168,10 +168,10 @@ Interrupt::OneTick()
     ChangeLevel(IntOff, IntOn);	// re-enable interrupts
     if (yieldOnReturn) {	// if the timer device handler asked 
     				// for a context switch, ok to do it now
-	yieldOnReturn = FALSE;
- 	status = SystemMode;		// yield is a kernel routine
-	kernel->currentThread->Yield();
-	status = oldStatus;
+        yieldOnReturn = FALSE;
+        status = SystemMode;		// yield is a kernel routine
+        kernel->currentThread->Yield();
+        status = oldStatus;
     }
 }
 
@@ -211,9 +211,9 @@ Interrupt::Idle()
     status = IdleMode;
 	DEBUG(dbgTraCode, "In Interrupt::Idle, into CheckIfDue, " << kernel->stats->totalTicks);
     if (CheckIfDue(TRUE)) {	// check for any pending interrupts
-	DEBUG(dbgTraCode, "In Interrupt::Idle, return true from CheckIfDue, " << kernel->stats->totalTicks);
-	status = SystemMode;
-	return;			// return in case there's now
+        DEBUG(dbgTraCode, "In Interrupt::Idle, return true from CheckIfDue, " << kernel->stats->totalTicks);
+        status = SystemMode;
+        return;			// return in case there's now
 				// a runnable thread
     }
 	DEBUG(dbgTraCode, "In Interrupt::Idle, return false from CheckIfDue, " << kernel->stats->totalTicks);

@@ -48,8 +48,20 @@ Alarm::CallBack()
 {
     Interrupt *interrupt = kernel->interrupt;
     MachineStatus status = interrupt->getStatus();
+
+    // MP3
+    // calculate burst and remain time
+    kernel->currentThread->IncreaseAccuTicks();
+    kernel->currentThread->IncreaseCpuBurstTime();
+    kernel->currentThread->UpdateApproxRemainTime();
+    kernel->currentThread->setCpuStartTime(kernel->stats->totalTicks);   // Because we have to keep accumulate burst time
+    
+    // do aging and then check preemptive
+    kernel->scheduler->Aging();
     
     if (status != IdleMode) {
-	interrupt->YieldOnReturn();
+        if (kernel->scheduler->CheckPreemptive()) {
+	        interrupt->YieldOnReturn();
+        }
     }
 }

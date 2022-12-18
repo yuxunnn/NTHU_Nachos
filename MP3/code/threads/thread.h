@@ -101,11 +101,44 @@ class Thread {
     void CheckOverflow();   	// Check if thread stack has overflowed
     void setStatus(ThreadStatus st) { status = st; }
     ThreadStatus getStatus() { return (status); }
-	char* getName() { return (name); }
+	  char* getName() { return (name); }
     
-	int getID() { return (ID); }
+	  int getID() { return (ID); }
     void Print() { cout << name; }
     void SelfTest();		// test whether thread impl is working
+
+    // ===================== MP3 ===========================
+    int getPriority() { return priority; }
+    int getQueueLevel() { return queueLevel; }
+    int getStartWaitingTime() { return startWaitingTime; }
+    int getTotalWaitingTime() { return totalWaitingTime; }
+
+    double getCpuStartTime() { return cpuStartTime; }
+    double getCpuBurstTime() { return cpuBurstTime; }
+    double getApproxBurstTime() { return approxBurstTime; }
+    double getApproxRemainTime() { return approxRemainTime; }
+
+    void setPriority(int initPriority) { priority = initPriority; }
+    void setStartWaitingTime(int newTime) { startWaitingTime = newTime; }
+    void setTotalWaitingTime(int newTime) { totalWaitingTime = newTime; }
+
+    void setCpuStartTime(double newTime) { cpuStartTime = newTime; }
+    void setCpuBurstTime(double newTime) { cpuBurstTime = newTime; }
+    void setAccuTicks(double newTick) { accuTicks = newTick; }
+
+    void InsertedIntoQueue(int queueNumber);
+    void RemovedFromQueue();
+    void ChangePriority();
+    void UpdateApproxBurstTime();
+    void ContextSwitch(int newThreadId);
+
+    void UpdateApproxRemainTime();
+    void IncreaseCpuBurstTime();
+    void IncreaseAccuTicks();
+    bool IncreaseTotalWaitingTime();
+
+    // ===================== MP3 ===========================
+
 
   private:
     // some of the private data for this class is listed above
@@ -115,10 +148,24 @@ class Thread {
 				// (If NULL, don't deallocate stack)
     ThreadStatus status;	// ready, running or blocked
     char* name;
-	int   ID;
+	  int   ID;
     void StackAllocate(VoidFunctionPtr func, void *arg);
     				// Allocate a stack for thread.
 				// Used internally by Fork()
+
+    // MP3
+    int priority;
+    int queueLevel;
+
+    int startWaitingTime;
+    int totalWaitingTime;
+
+    double cpuStartTime;    
+    double cpuBurstTime;    // T
+    double approxBurstTime;
+    double approxRemainTime;
+
+    double accuTicks;
 
 // A thread running a user program actually has *two* sets of CPU registers -- 
 // one for its state while executing user code, one for its state 

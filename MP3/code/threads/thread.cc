@@ -37,6 +37,20 @@ Thread::Thread(char* threadName, int threadID)
 {
 	ID = threadID;
     name = threadName;
+    // MP3
+    priority = 0;
+    queueLevel = 0;
+
+    totalWaitingTime = 0;
+    startWaitingTime = 0;
+
+    cpuStartTime = 0;
+    cpuBurstTime = 0;
+    approxBurstTime = 0;
+    approxRemainTime = 0;
+
+    accuTicks = 0;
+
     stackTop = NULL;
     stack = NULL;
     status = JUST_CREATED;
@@ -206,12 +220,14 @@ Thread::Yield ()
     ASSERT(this == kernel->currentThread);
     
     DEBUG(dbgThread, "Yielding thread: " << name);
-    
+
     nextThread = kernel->scheduler->FindNextToRun();
+
     if (nextThread != NULL) {
-	kernel->scheduler->ReadyToRun(this);
-	kernel->scheduler->Run(nextThread, FALSE);
+	    kernel->scheduler->ReadyToRun(this);
+	    kernel->scheduler->Run(nextThread, FALSE);
     }
+
     (void) kernel->interrupt->SetLevel(oldLevel);
 }
 
@@ -247,13 +263,109 @@ Thread::Sleep (bool finishing)
     DEBUG(dbgTraCode, "In Thread::Sleep, Sleeping thread: " << name << ", " << kernel->stats->totalTicks);
 
     status = BLOCKED;
+    
+    // MP3
+    // Only update approximate burst time from running to waiting
+    this->IncreaseAccuTicks();
+    this->IncreaseCpuBurstTime();
+    this->UpdateApproxBurstTime();
+    // clear cpu burst time from running to waiting
+    this->setCpuBurstTime(0); 
+
 	//cout << "debug Thread::Sleep " << name << "wait for Idle\n";
     while ((nextThread = kernel->scheduler->FindNextToRun()) == NULL) {
 		kernel->interrupt->Idle();	// no one to run, wait for an interrupt
 	}    
+    
+
     // returns when it's time for us to run
     kernel->scheduler->Run(nextThread, finishing); 
 }
+
+// MP3
+void 
+Thread::InsertedIntoQueue(int newQueueLevel)
+{
+    queueLevel = newQueueLevel;
+
+    DEBUG(z, "[A] Tick [" << kernel->stats->totalTicks << "]: Thread [" << ID << "] is inserted into queue L[" << queueLevel << "]");
+}
+
+// MP3
+void 
+Thread::RemovedFromQueue()
+{
+    DEBUG(z, "[B] Tick [" << kernel->stats->totalTicks << "]: Thread [" << ID << "] is removed from queue L[" << queueLevel << "]");
+}
+
+// MP3
+void
+Thread::ChangePriority()
+{
+    int oldPriority = this->priority;
+    int newPriority = min(oldPriority + 10, 149);
+
+    priority = newPriority;
+
+    DEBUG(z, "[C] Tick [" << kernel->stats->totalTicks << "]: Thread [" << ID << "] changes its priority from [" << oldPriority << "] to [" << newPriority << "]");
+}
+
+// MP3
+void 
+Thread::UpdateApproxBurstTime()
+{
+    double newApproxBurstTime = 0.5 * cpuBurstTime + 0.5 * approxBurstTime;
+
+    DEBUG(z, "[D] Tick [" << kernel->stats->totalTicks << "]: Thread [" << ID << "] update approximate burst time, from: [" << approxBurstTime << "], add [" << cpuBurstTime << "], to [" << newApproxBurstTime << "]");
+
+    // update approxBurstTime and reset approxRemainTime
+    approxBurstTime = newApproxBurstTime;
+    approxRemainTime = newApproxBurstTime;
+}
+
+// MP3
+void 
+Thread::ContextSwitch(int newThreadId)
+{
+    DEBUG(z, "[E] Tick [" << kernel->stats->totalTicks << "]: Thread [" << newThreadId << "] is now selected for execution, thread [" << ID << "] is replaced, and it has executed [" << accuTicks << "] ticks");
+}
+
+// MP3
+void
+Thread::IncreaseCpuBurstTime() 
+{
+    cpuBurstTime = cpuBurstTime + (kernel->stats->totalTicks - cpuStartTime);
+}
+
+// MP3
+bool
+Thread::IncreaseTotalWaitingTime()
+{
+    totalWaitingTime = totalWaitingTime + (kernel->stats->totalTicks - startWaitingTime);
+
+    if (totalWaitingTime >= 1500) {
+        totalWaitingTime = totalWaitingTime - 1500;
+        return TRUE;
+    }
+    else {
+        return FALSE;
+    }
+}
+
+// MP3
+void
+Thread::UpdateApproxRemainTime()
+{
+    approxRemainTime = approxBurstTime - cpuBurstTime;
+}
+
+// MP3
+void 
+Thread::IncreaseAccuTicks()
+{
+    accuTicks = accuTicks + (kernel->stats->totalTicks - cpuStartTime);
+}
+
 
 //----------------------------------------------------------------------
 // ThreadBegin, ThreadFinish,  ThreadPrint

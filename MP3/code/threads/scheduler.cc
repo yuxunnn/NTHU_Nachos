@@ -29,9 +29,51 @@
 //	Initially, no ready threads.
 //----------------------------------------------------------------------
 
+// MP3
+int 
+L1Compare(Thread *t1, Thread *t2) {
+    // smaller burst time first
+    double t1ApproxRemainTime = t1->getApproxRemainTime();
+    double t2ApproxRemainTime = t2->getApproxRemainTime();
+
+    if (t1ApproxRemainTime > t2ApproxRemainTime){
+        return 1;
+    }
+    else if (t1ApproxRemainTime < t2ApproxRemainTime){
+        return -1;
+    }
+    else {
+        return 0;
+    }
+}
+
+// MP3
+int 
+L2Compare(Thread *t1, Thread *t2) {
+    // higher priority first
+    int t1Priority = t1->getPriority();
+    int t2Priority = t2->getPriority();
+
+    if (t1Priority < t2Priority) {
+        return 1;
+    }
+    else if (t1Priority > t2Priority) {
+        return -1;
+    }
+    else {
+        return 0;
+    }
+}
+
+
 Scheduler::Scheduler()
 { 
     readyList = new List<Thread *>; 
+    // MP3
+    L1 = new SortedList<Thread *>(L1Compare);
+    L2 = new SortedList<Thread *>(L2Compare);
+    L3 = new List<Thread *>;
+
     toBeDestroyed = NULL;
 } 
 
@@ -43,6 +85,10 @@ Scheduler::Scheduler()
 Scheduler::~Scheduler()
 { 
     delete readyList; 
+    // MP3
+    delete L1;
+    delete L2;
+    delete L3;
 } 
 
 //----------------------------------------------------------------------
@@ -60,7 +106,37 @@ Scheduler::ReadyToRun (Thread *thread)
     DEBUG(dbgThread, "Putting thread on ready list: " << thread->getName());
 	//cout << "Putting thread on ready list: " << thread->getName() << endl ;
     thread->setStatus(READY);
-    readyList->Append(thread);
+
+    // readyList->Append(thread);
+    // MP3
+    int threadPriority = thread->getPriority();
+
+    thread->setStartWaitingTime(kernel->stats->totalTicks);
+
+    if (threadPriority > 149) {
+        // out of range
+        DEBUG(z, "Thread priority is out of range");
+    }
+    else if (threadPriority >= 100) {
+        // L1 (100 - 149)
+        L1->Insert(thread);
+        thread->InsertedIntoQueue(1);
+    }
+    else if (threadPriority >= 50) {
+        // L2 (50 - 99)
+        L2->Insert(thread);
+        thread->InsertedIntoQueue(2);
+    }
+    else if (threadPriority >= 0) {
+        // L3 (0 - 49)
+        L3->Append(thread);
+        thread->InsertedIntoQueue(3);
+    }
+    else {
+        // out of range
+        DEBUG(z, "Thread priority is out of range");
+    }
+    
 }
 
 //----------------------------------------------------------------------
@@ -76,10 +152,53 @@ Scheduler::FindNextToRun ()
 {
     ASSERT(kernel->interrupt->getLevel() == IntOff);
 
-    if (readyList->IsEmpty()) {
-		return NULL;
-    } else {
-    	return readyList->RemoveFront();
+    // if (readyList->IsEmpty()) {
+	// 	return NULL;
+    // } else {
+    // 	return readyList->RemoveFront();
+    // }
+    // MP3
+    if (!L1->IsEmpty()) {
+        Thread *currThread = kernel->currentThread;
+        Thread *nextThread = L1->RemoveFront();
+
+        nextThread->setCpuStartTime(kernel->stats->totalTicks);
+        nextThread->setTotalWaitingTime(0);
+        nextThread->setAccuTicks(0);
+
+        nextThread->RemovedFromQueue();
+        currThread->ContextSwitch(nextThread->getID());
+
+        return nextThread;
+    }
+    else if (!L2->IsEmpty()) {
+        Thread *currThread = kernel->currentThread;
+        Thread *nextThread = L2->RemoveFront();
+
+        nextThread->setCpuStartTime(kernel->stats->totalTicks);
+        nextThread->setTotalWaitingTime(0);
+        nextThread->setAccuTicks(0);
+
+        nextThread->RemovedFromQueue();
+        currThread->ContextSwitch(nextThread->getID());
+
+        return nextThread;
+    }
+    else if (!L3->IsEmpty()) {
+        Thread *currThread = kernel->currentThread;
+        Thread *nextThread = L3->RemoveFront();
+
+        nextThread->setCpuStartTime(kernel->stats->totalTicks);
+        nextThread->setTotalWaitingTime(0);
+        nextThread->setAccuTicks(0);
+
+        nextThread->RemovedFromQueue();
+        currThread->ContextSwitch(nextThread->getID());
+
+        return nextThread;
+    }
+    else {
+        return NULL;
     }
 }
 
@@ -108,13 +227,13 @@ Scheduler::Run (Thread *nextThread, bool finishing)
     ASSERT(kernel->interrupt->getLevel() == IntOff);
 
     if (finishing) {	// mark that we need to delete current thread
-         ASSERT(toBeDestroyed == NULL);
-	 toBeDestroyed = oldThread;
+        ASSERT(toBeDestroyed == NULL);
+	    toBeDestroyed = oldThread;
     }
     
     if (oldThread->space != NULL) {	// if this thread is a user program,
         oldThread->SaveUserState(); 	// save the user's CPU registers
-	oldThread->space->SaveState();
+	    oldThread->space->SaveState();
     }
     
     oldThread->CheckOverflow();		    // check if the old thread
@@ -145,7 +264,7 @@ Scheduler::Run (Thread *nextThread, bool finishing)
     
     if (oldThread->space != NULL) {	    // if there is an address space
         oldThread->RestoreUserState();     // to restore, do it.
-	oldThread->space->RestoreState();
+	    oldThread->space->RestoreState();
     }
 }
 
@@ -157,12 +276,119 @@ Scheduler::Run (Thread *nextThread, bool finishing)
 // 	point, we were still running on the old thread's stack!
 //----------------------------------------------------------------------
 
+// MP3
+int
+Scheduler::Aging()
+{
+    Thread *thread;
+    ListIterator<Thread *> *iterator;
+
+    if (!L1->IsEmpty()) {
+        iterator = new ListIterator<Thread *>(L1);
+        for (; !iterator->IsDone(); iterator->Next()) {
+            thread = iterator->Item();
+
+            // Increase total waiting time
+            bool doAging = thread->IncreaseTotalWaitingTime();
+            thread->setStartWaitingTime(kernel->stats->totalTicks);
+            
+            // Check whether over 1500
+            if (doAging) {
+                thread->ChangePriority();
+            }
+
+        }
+    }
+
+    if (!L2->IsEmpty()) {
+        iterator = new ListIterator<Thread *>(L2);
+        for (; !iterator->IsDone(); iterator->Next()) {
+            thread = iterator->Item();
+
+            // Increase total waiting time
+            bool doAging = thread->IncreaseTotalWaitingTime();
+            thread->setStartWaitingTime(kernel->stats->totalTicks);
+            
+            // Check whether over 1500
+            if (doAging) {
+                thread->ChangePriority();
+            }
+
+            if (thread->getPriority() > 99) {
+                L2->Remove(thread);
+                L1->Insert(thread);
+
+                thread->RemovedFromQueue();
+                thread->InsertedIntoQueue(1);
+            }
+        }
+    }
+
+    if (!L3->IsEmpty()) {
+        iterator = new ListIterator<Thread *>(L3);
+        for (; !iterator->IsDone(); iterator->Next()) {
+            thread = iterator->Item();
+            
+            // Increase total waiting time
+            bool doAging = thread->IncreaseTotalWaitingTime();
+            thread->setStartWaitingTime(kernel->stats->totalTicks);
+
+            // Check whether over 1500
+            if (doAging) {
+                thread->ChangePriority();
+            }
+            
+            if (thread->getPriority() > 49) {
+                L3->Remove(thread);
+                L2->Insert(thread);
+
+                thread->RemovedFromQueue();
+                thread->InsertedIntoQueue(2);
+            }
+        }
+    }    
+}
+
+// MP3
+bool
+Scheduler::CheckPreemptive()
+{
+    Thread *currThread = kernel->currentThread;
+    int currThreadLevel = currThread->getQueueLevel();
+
+    if (currThreadLevel == 1) {
+        if (!L1->IsEmpty()) {
+            if (L1Compare(currThread, L1->Front()) == 1) {
+                return TRUE;
+            }
+        }
+    }
+    else if (currThreadLevel == 2) {
+        if (!L1->IsEmpty()) {
+            return TRUE;
+        }
+    }
+    else {
+        if (!L1->IsEmpty()){
+            return TRUE;
+        }
+        if (!L2->IsEmpty()) {
+            return TRUE;
+        }
+        if (!L3->IsEmpty()) {
+            return TRUE;
+        }
+    }
+
+    return FALSE;
+}
+
 void
 Scheduler::CheckToBeDestroyed()
 {
     if (toBeDestroyed != NULL) {
         delete toBeDestroyed;
-	toBeDestroyed = NULL;
+	    toBeDestroyed = NULL;
     }
 }
  
