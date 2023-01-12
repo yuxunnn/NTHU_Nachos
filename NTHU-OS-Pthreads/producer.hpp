@@ -34,10 +34,22 @@ Producer::~Producer() {}
 
 void Producer::start() {
 	// TODO: starts a Producer thread
+	pthread_create(&t, 0, Producer::process, (void*)this);
 }
 
 void* Producer::process(void* arg) {
 	// TODO: implements the Producer's work
+	Producer* producer = (Producer*)arg;
+
+	while (true) {
+		Transformer* transformer = new Transformer();
+		
+		Item* item = producer->input_queue->dequeue();
+		item->val = transformer->producer_transform(item->opcode, item->val);
+		producer->worker_queue->enqueue(item);
+	}
+
+	return nullptr;
 }
 
 #endif // PRODUCER_HPP

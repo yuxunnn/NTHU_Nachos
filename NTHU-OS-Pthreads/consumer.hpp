@@ -40,6 +40,7 @@ Consumer::~Consumer() {}
 
 void Consumer::start() {
 	// TODO: starts a Consumer thread
+	pthread_create(&t, 0, Consumer::process, (void*)this);
 }
 
 int Consumer::cancel() {
@@ -55,6 +56,11 @@ void* Consumer::process(void* arg) {
 		pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, nullptr);
 
 		// TODO: implements the Consumer's work
+		Transformer* transformer = new Transformer();
+
+		Item* item = consumer->worker_queue->dequeue();
+		item->val = transformer->consumer_transform(item->opcode, item->val);
+		consumer->output_queue->enqueue(item);
 
 		pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, nullptr);
 	}

@@ -22,6 +22,6 @@ int main(int argc, char** argv) {
 	std::string output_file_name(argv[3]);
 
 	// TODO: implements main function
-
+	
 	return 0;
 }

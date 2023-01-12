@@ -68,10 +68,14 @@ ConsumerController::~ConsumerController() {}
 
 void ConsumerController::start() {
 	// TODO: starts a ConsumerController thread
+	pthread_create(&t, 0, ConsumerController::process, (void*)this);
 }
 
 void* ConsumerController::process(void* arg) {
 	// TODO: implements the ConsumerController's work
+	ConsumerController* consumer_controller = (ConsumerController*)arg;
+
+	return nullptr;
 }
 
 #endif // CONSUMER_CONTROLLER_HPP
