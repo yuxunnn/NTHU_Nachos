@@ -82,8 +82,8 @@ void TSQueue<T>::enqueue(T item) {
 	tail = (tail + 1) % buffer_size;
 	size = size + 1;
 
-	pthread_mutex_unlock(&mutex);
 	pthread_cond_signal(&cond_dequeue);
+	pthread_mutex_unlock(&mutex);
 }
 
 template <class T>
@@ -99,8 +99,8 @@ T TSQueue<T>::dequeue() {
 	head = (head + 1) % buffer_size;
 	size = size - 1;
 
-	pthread_mutex_unlock(&mutex);
 	pthread_cond_signal(&cond_enqueue);
+	pthread_mutex_unlock(&mutex);
 
 	return dequeued_element;
 }
