@@ -34,9 +34,9 @@ int main(int argc, char** argv) {
 	Producer* producer3 = new Producer(input_queue, worker_queue, transformer);
 	Producer* producer4 = new Producer(input_queue, worker_queue, transformer);
 	ConsumerController* consumer_controller = new ConsumerController(worker_queue, output_queue, transformer, 
-												CONSUMER_CONTROLLER_CHECK_PERIOD * WORKER_QUEUE_SIZE / 100, 
+												CONSUMER_CONTROLLER_CHECK_PERIOD, 
 												CONSUMER_CONTROLLER_LOW_THRESHOLD_PERCENTAGE * WORKER_QUEUE_SIZE / 100, 
-												CONSUMER_CONTROLLER_HIGH_THRESHOLD_PERCENTAGE);
+												CONSUMER_CONTROLLER_HIGH_THRESHOLD_PERCENTAGE * WORKER_QUEUE_SIZE / 100);
 	Writer* writer = new Writer(n, output_file_name, output_queue);
 
 	/* start */
