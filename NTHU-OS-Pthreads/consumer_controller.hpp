@@ -79,11 +79,13 @@ void* ConsumerController::process(void* arg) {
 		int curr_size = consumer_controller->worker_queue->get_size();
 
 		if (curr_size < consumer_controller->low_threshold) {
-			std::cout << "Scaling down consumers from " << consumer_controller->consumers.size() << " to " << consumer_controller->consumers.size()-1 << std::endl;
+			if (consumer_controller->consumers.size() > 1) {
+				std::cout << "Scaling down consumers from " << consumer_controller->consumers.size() << " to " << consumer_controller->consumers.size()-1 << std::endl;
 
-			Consumer* to_delete = consumer_controller->consumers.back();
-			consumer_controller->consumers.pop_back();
-			to_delete->cancel();
+				Consumer* to_delete = consumer_controller->consumers.back();
+				consumer_controller->consumers.pop_back();
+				to_delete->cancel();
+			}
 		}
 		else if (curr_size > consumer_controller->high_threshold) {
 			std::cout << "Scaling up consumers from " << consumer_controller->consumers.size() << " to " << consumer_controller->consumers.size()+1 << std::endl;
