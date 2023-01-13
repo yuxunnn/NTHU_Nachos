@@ -42,10 +42,8 @@ void* Producer::process(void* arg) {
 	Producer* producer = (Producer*)arg;
 
 	while (true) {
-		Transformer* transformer = new Transformer();
-		
 		Item* item = producer->input_queue->dequeue();
-		item->val = transformer->producer_transform(item->opcode, item->val);
+		item->val = producer->transformer->producer_transform(item->opcode, item->val);
 		producer->worker_queue->enqueue(item);
 	}
 

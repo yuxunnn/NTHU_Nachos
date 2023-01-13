@@ -75,6 +75,28 @@ void* ConsumerController::process(void* arg) {
 	// TODO: implements the ConsumerController's work
 	ConsumerController* consumer_controller = (ConsumerController*)arg;
 
+	while (true) {
+		int curr_size = consumer_controller->worker_queue->get_size();
+
+		if (curr_size < consumer_controller->low_threshold) {
+			std::cout << "Scaling down consumers from " << consumer_controller->consumers.size() << " to " << consumer_controller->consumers.size()-1 << std::endl;
+
+			Consumer* to_delete = consumer_controller->consumers.back();
+			consumer_controller->consumers.pop_back();
+			to_delete->cancel();
+		}
+		else if (curr_size > consumer_controller->high_threshold) {
+			std::cout << "Scaling up consumers from " << consumer_controller->consumers.size() << " to " << consumer_controller->consumers.size()+1 << std::endl;
+
+			Consumer* newConsumer = new Consumer(consumer_controller->worker_queue, consumer_controller->writer_queue, consumer_controller->transformer);
+			consumer_controller->consumers.push_back(newConsumer);
+			newConsumer->start();
+		}
+		
+		// Check periodically in microsecond (us)
+		usleep(consumer_controller->check_period);
+	}
+
 	return nullptr;
 }
 

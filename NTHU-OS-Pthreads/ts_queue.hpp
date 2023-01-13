@@ -78,6 +78,7 @@ void TSQueue<T>::enqueue(T item) {
 		pthread_cond_wait(&cond_enqueue, &mutex);
 	}
 
+	buffer[tail] = item;
 	tail = (tail + 1) % buffer_size;
 	size = size + 1;
 
