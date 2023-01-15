@@ -2,7 +2,6 @@
 #include "reader.hpp"
 #include "writer.hpp"
 #include "consumer.hpp"
-#include "transformer.hpp"
 
 int main() {
 	TSQueue<Item*>* q1;

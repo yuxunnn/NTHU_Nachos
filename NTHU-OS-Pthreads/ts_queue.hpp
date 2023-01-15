@@ -72,7 +72,6 @@ TSQueue<T>::~TSQueue() {
 template <class T>
 void TSQueue<T>::enqueue(T item) {
 	// TODO: enqueues an element to the end of the queue
-
 	pthread_mutex_lock(&mutex);
 	while (size == buffer_size) {
 		pthread_cond_wait(&cond_enqueue, &mutex);
@@ -89,7 +88,6 @@ void TSQueue<T>::enqueue(T item) {
 template <class T>
 T TSQueue<T>::dequeue() {
 	// TODO: dequeues the first element of the queue
-
 	pthread_mutex_lock(&mutex);
 	while (size == 0) {
 		pthread_cond_wait(&cond_dequeue, &mutex);
@@ -108,7 +106,6 @@ T TSQueue<T>::dequeue() {
 template <class T>
 int TSQueue<T>::get_size() {
 	// TODO: returns the size of the queue
-	
 	pthread_mutex_lock(&mutex);
 	int curr_size = size;
 	pthread_mutex_unlock(&mutex);
