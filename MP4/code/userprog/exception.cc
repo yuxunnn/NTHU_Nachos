@@ -76,6 +76,84 @@ void ExceptionHandler(ExceptionType which)
 			ASSERTNOTREACHED();
 			break;
 		// MP4 mod tag
+		case SC_Create:
+			val = kernel->machine->ReadRegister(4);
+			{
+				char* filename = &(kernel->machine->mainMemory[val]);
+				// MP4
+				int size = kernel->machine->ReadRegister(5);
+				status = SysCreate(filename, size);
+				kernel->machine->WriteRegister(2, (int)status);
+			}
+			kernel->machine->WriteRegister(PrevPCReg, kernel->machine->ReadRegister(PCReg));
+			kernel->machine->WriteRegister(PCReg, kernel->machine->ReadRegister(PCReg) + 4);
+			kernel->machine->WriteRegister(NextPCReg, kernel->machine->ReadRegister(PCReg) + 4);
+			return;
+			ASSERTNOTREACHED();
+			break;
+		// MP4 mod tag
+		case SC_Open:
+			val = kernel->machine->ReadRegister(4);
+			{
+				char* buffer = &(kernel->machine->mainMemory[val]);
+				status = SysOpen(buffer);
+				DEBUG(dbgFile, "Open");
+				DEBUG(dbgFile, status);
+				kernel->machine->WriteRegister(2, (int)status);
+			}
+			kernel->machine->WriteRegister(PrevPCReg, kernel->machine->ReadRegister(PCReg));
+			kernel->machine->WriteRegister(PCReg, kernel->machine->ReadRegister(PCReg) + 4);
+			kernel->machine->WriteRegister(NextPCReg, kernel->machine->ReadRegister(PCReg) + 4);
+			return;
+			ASSERTNOTREACHED();
+			break;
+		// MP4 mod tag
+		case SC_Write:
+			val = kernel->machine->ReadRegister(4);
+			{
+				char* buffer = &(kernel->machine->mainMemory[val]);
+				status = SysWrite(buffer, (int)kernel->machine->ReadRegister(5), (int)kernel->machine->ReadRegister(6));
+				DEBUG(dbgFile, "Write");
+				DEBUG(dbgFile, status);
+				kernel->machine->WriteRegister(2, (int)status);
+			}
+			kernel->machine->WriteRegister(PrevPCReg, kernel->machine->ReadRegister(PCReg));
+			kernel->machine->WriteRegister(PCReg, kernel->machine->ReadRegister(PCReg) + 4);
+			kernel->machine->WriteRegister(NextPCReg, kernel->machine->ReadRegister(PCReg) + 4);
+			return;
+			ASSERTNOTREACHED();
+			break;
+		// MP4 mod tag
+		case SC_Read:
+			val = kernel->machine->ReadRegister(4);
+			{
+				char* buffer = &(kernel->machine->mainMemory[val]);
+				status = SysRead(buffer, (int)kernel->machine->ReadRegister(5), (int)kernel->machine->ReadRegister(6));
+				DEBUG(dbgFile, "Read");
+				DEBUG(dbgFile, status);
+				kernel->machine->WriteRegister(2, (int)status);
+			}
+			kernel->machine->WriteRegister(PrevPCReg, kernel->machine->ReadRegister(PCReg));
+			kernel->machine->WriteRegister(PCReg, kernel->machine->ReadRegister(PCReg) + 4);
+			kernel->machine->WriteRegister(NextPCReg, kernel->machine->ReadRegister(PCReg) + 4);
+			return;
+			ASSERTNOTREACHED();
+			break;
+		// MP4 mod tag
+		case SC_Close:
+			val = (int)kernel->machine->ReadRegister(4);
+			{
+				status = SysClose(val);
+				DEBUG(dbgFile, "Close");
+				DEBUG(dbgFile, status);
+				kernel->machine->WriteRegister(2, (int)status);
+			}
+			kernel->machine->WriteRegister(PrevPCReg, kernel->machine->ReadRegister(PCReg));
+			kernel->machine->WriteRegister(PCReg, kernel->machine->ReadRegister(PCReg) + 4);
+			kernel->machine->WriteRegister(NextPCReg, kernel->machine->ReadRegister(PCReg) + 4);
+			return;
+			ASSERTNOTREACHED();
+			break;
 #ifdef FILESYS_STUB
 		case SC_Create:
 			val = kernel->machine->ReadRegister(4);

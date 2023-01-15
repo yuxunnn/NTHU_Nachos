@@ -96,6 +96,13 @@ static void Copy(char *from, char *to)
 
     // Create a Nachos file of the same length
     DEBUG('f', "Copying file " << from << " of size " << fileLength << " to file " << to);
+
+    // MP4
+    char saveFileName[300];
+    strcpy(saveFileName, to);
+
+    DEBUG(dbgFile, to);
+
     if (!kernel->fileSystem->Create(to, fileLength))
     { // Create Nachos file
         printf("Copy: couldn't create output file %s\n", to);
@@ -103,7 +110,10 @@ static void Copy(char *from, char *to)
         return;
     }
 
-    openFile = kernel->fileSystem->Open(to);
+    DEBUG(dbgFile, saveFileName);
+
+    openFile = kernel->fileSystem->Open(saveFileName);
+    // openFile = kernel->fileSystem->Open(to);
     ASSERT(openFile != NULL);
 
     // Copy the data in TransferSize chunks
@@ -154,6 +164,7 @@ void Print(char *name)
 static void CreateDirectory(char *name)
 {
     // MP4 Assignment
+    kernel->fileSystem->CreateDirectory(name);
 }
 
 //----------------------------------------------------------------------
@@ -268,7 +279,7 @@ int main(int argc, char **argv)
             // recursive list
             ASSERT(i + 1 < argc);
             listDirectoryName = argv[i + 1];
-            dirListFlag = true;
+            // dirListFlag = true;
             recursiveListFlag = true;
             i++;
         }
@@ -323,10 +334,10 @@ int main(int argc, char **argv)
     }
 
 #ifndef FILESYS_STUB
-    if (removeFileName != NULL)
-    {
-        kernel->fileSystem->Remove(removeFileName);
-    }
+    // if (removeFileName != NULL)
+    // {
+    //     kernel->fileSystem->Remove(removeFileName);
+    // }
     if (copyUnixFileName != NULL && copyNachosFileName != NULL)
     {
         Copy(copyUnixFileName, copyNachosFileName);
@@ -337,7 +348,19 @@ int main(int argc, char **argv)
     }
     if (dirListFlag)
     {
-        kernel->fileSystem->List();
+        kernel->fileSystem->List(listDirectoryName);
+    }
+    if (recursiveListFlag)
+    {
+        kernel->fileSystem->RecursiveList(listDirectoryName);
+    }
+    if (recursiveRemoveFlag)
+    {
+        kernel->fileSystem->RecursiveRemove(removeFileName);
+    }
+    else if (removeFileName != NULL)
+    {
+        kernel->fileSystem->Remove(removeFileName);
     }
     if (mkdirFlag)
     {

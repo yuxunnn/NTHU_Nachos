@@ -37,6 +37,10 @@
 #include "sysdep.h"
 #include "openfile.h"
 
+#include "directory.h"
+
+#define NumDirEntries 64
+
 typedef int OpenFileId;
 
 #ifdef FILESYS_STUB // Temporarily implement file system calls as
@@ -88,16 +92,44 @@ public:
 	// MP4 mod tag
 	~FileSystem();
 
-	bool Create(char *name, int initialSize);
+	// bool Create(char *name, int initialSize);
 	// Create a file (UNIX creat)
 
 	OpenFile *Open(char *name); // Open a file (UNIX open)
 
 	bool Remove(char *name); // Delete a file (UNIX unlink)
 
-	void List(); // List all the files in the file system
+	// void List(); // List all the files in the file system
+	void List(char *name);
+
+	void RecursiveList(char *name);
+
+	void RecursiveRemove(char *name);
 
 	void Print(); // List all the files and their contents
+
+	// MP4
+	void CreateDirectory(char *name);
+
+	// MP4
+	int Create(char *name, int initialSize);
+
+	// MP4
+	OpenFileId OpenAFile(char *name);
+
+	// MP4
+	int Read(char *buffer, int size, OpenFileId id);
+	
+	// MP4
+	int Write(char *buffer, int size, OpenFileId id);
+
+	// MP4
+	int Close(OpenFileId id);
+ 
+  	// MP4
+	OpenFile *opfile;
+
+	OpenFile *getFreeMapFile() {return freeMapFile;}
 
 private:
 	OpenFile *freeMapFile;	 // Bit map of free disk blocks,

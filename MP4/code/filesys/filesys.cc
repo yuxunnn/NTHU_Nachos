@@ -62,7 +62,7 @@
 // supports extensible files, the directory size sets the maximum number
 // of files that can be loaded onto the disk.
 #define FreeMapFileSize (NumSectors / BitsInByte)
-#define NumDirEntries 10
+// #define NumDirEntries 10
 #define DirectoryFileSize (sizeof(DirectoryEntry) * NumDirEntries)
 
 //----------------------------------------------------------------------
@@ -185,7 +185,63 @@ FileSystem::~FileSystem()
 //	"initialSize" -- size of file to be created
 //----------------------------------------------------------------------
 
-bool FileSystem::Create(char *name, int initialSize)
+
+
+// MP4
+void FileSystem::CreateDirectory(char *name)
+{
+    // Root Directory
+    Directory *directory;
+    directory = new Directory(NumDirEntries);
+    directory->FetchFrom(directoryFile);
+    OpenFile *currDirFile = directoryFile;
+
+     PersistentBitmap *freeMap = new PersistentBitmap(freeMapFile, NumSectors);
+    int sector;
+
+    // Parse directory path
+    char *token = strtok(name, "/");
+    while (true) {
+        if (directory->Find(token) != -1) {
+            sector = directory->Find(token);
+
+            DEBUG(dbgFile, token << " at sector num " << sector);
+
+            OpenFile* subDirFile = new OpenFile(sector);
+            directory->FetchFrom(subDirFile);
+            currDirFile = subDirFile;
+        }else {
+            Directory *subDir = new Directory(NumDirEntries);
+            FileHeader *subDirHdr = new FileHeader;
+
+            sector = freeMap->FindAndSet();
+
+            directory->Add(token, sector, TRUE);
+            subDirHdr->Allocate(freeMap, DirectoryFileSize);
+
+            DEBUG(dbgFile, token << " at sector num " << sector);
+
+            subDirHdr->WriteBack(sector);
+            directory->WriteBack(currDirFile);
+            freeMap->WriteBack(freeMapFile);
+
+            OpenFile* subDirFile = new OpenFile(sector);
+            subDir->WriteBack(subDirFile);
+
+            directory->FetchFrom(subDirFile);
+            currDirFile = subDirFile;
+        }
+
+        token = strtok(NULL, "/");
+        if (token == NULL) {
+            break;
+        }
+    }
+}
+
+// MP4
+// bool FileSystem::Create(char *name, int initialSize)
+int FileSystem::Create(char *name, int initialSize)
 {
     Directory *directory;
     PersistentBitmap *freeMap;
@@ -197,16 +253,41 @@ bool FileSystem::Create(char *name, int initialSize)
 
     directory = new Directory(NumDirEntries);
     directory->FetchFrom(directoryFile);
+    
+    // MP4
+    char *token = strtok(name, "/");
+    char *prevToken = token;
+    OpenFile *currDirFile = directoryFile;
 
-    if (directory->Find(name) != -1)
+    while (true) {
+        token = strtok(NULL, "/");
+        if (token == NULL) {
+            break;
+        }
+
+        sector = directory->Find(prevToken);
+
+        OpenFile* subDirFile = new OpenFile(sector);
+        directory->FetchFrom(subDirFile);
+        currDirFile = subDirFile;
+
+        DEBUG(dbgFile, prevToken << " at sector num " << sector);
+
+        prevToken = token;
+    }
+
+    DEBUG(dbgFile, "filename is " << prevToken);
+
+    if (directory->Find(prevToken) != -1)
         success = FALSE; // file is already in directory
     else
     {
         freeMap = new PersistentBitmap(freeMapFile, NumSectors);
         sector = freeMap->FindAndSet(); // find a sector to hold the file header
+
         if (sector == -1)
             success = FALSE; // no free block for file header
-        else if (!directory->Add(name, sector))
+        else if (!directory->Add(prevToken, sector, FALSE))
             success = FALSE; // no space in directory
         else
         {
@@ -217,8 +298,10 @@ bool FileSystem::Create(char *name, int initialSize)
             {
                 success = TRUE;
                 // everthing worked, flush all changes back to disk
+                DEBUG(dbgFile, "file's FCB at " << sector);
+
                 hdr->WriteBack(sector);
-                directory->WriteBack(directoryFile);
+                directory->WriteBack(currDirFile);
                 freeMap->WriteBack(freeMapFile);
             }
             delete hdr;
@@ -226,7 +309,9 @@ bool FileSystem::Create(char *name, int initialSize)
         delete freeMap;
     }
     delete directory;
-    return success;
+
+    // return success;
+    return 1;
 }
 
 //----------------------------------------------------------------------
@@ -239,19 +324,68 @@ bool FileSystem::Create(char *name, int initialSize)
 //	"name" -- the text name of the file to be opened
 //----------------------------------------------------------------------
 
+// MP4
 OpenFile * FileSystem::Open(char *name)
 {
     Directory *directory = new Directory(NumDirEntries);
+    directory->FetchFrom(directoryFile);
     OpenFile *openFile = NULL;
     int sector;
 
-    DEBUG(dbgFile, "Opening file" << name);
-    directory->FetchFrom(directoryFile);
-    sector = directory->Find(name);
+    // MP4
+    char *token = strtok(name, "/");
+    char *prevToken = token;
+
+    while (true) {
+        token = strtok(NULL, "/");
+        if (token == NULL) {
+            break;
+        }
+
+        sector = directory->Find(prevToken);
+
+        DEBUG(dbgFile, prevToken << " at sector num " << sector);
+
+        OpenFile* subDirFile = new OpenFile(sector);
+        directory->FetchFrom(subDirFile);
+
+        prevToken = token;
+    }
+
+    // DEBUG(dbgFile, "directory sector" << sector);
+
+    DEBUG(dbgFile, "Opening file " << prevToken);
+
+    sector = directory->Find(prevToken);
+
+    DEBUG(dbgFile, "file's FCB at " << sector);
+
     if (sector >= 0)
         openFile = new OpenFile(sector); // name was found in directory
     delete directory;
     return openFile; // return NULL if not found
+}
+
+// MP4
+OpenFileId FileSystem::OpenAFile(char *name){
+    opfile = Open(name);
+    return 1;
+}
+
+// MP4
+int FileSystem::Read(char *buffer, int size, OpenFileId id){
+    return opfile->Read(buffer, size);
+}
+
+// MP4
+int FileSystem::Write(char *buffer, int size, OpenFileId id){
+    return opfile->Write(buffer, size);
+}
+
+// MP4
+int FileSystem::Close(OpenFileId id){
+    opfile = NULL;
+    return 1;
 }
 
 //----------------------------------------------------------------------
@@ -270,14 +404,40 @@ OpenFile * FileSystem::Open(char *name)
 
 bool FileSystem::Remove(char *name)
 {
-    Directory *directory;
+    Directory *directory = new Directory(NumDirEntries);
     PersistentBitmap *freeMap;
     FileHeader *fileHdr;
     int sector;
 
-    directory = new Directory(NumDirEntries);
+    // MP4
+    char *token = strtok(name, "/");
+    char *prevToken = token;
+    OpenFile *currDirFile = directoryFile;
     directory->FetchFrom(directoryFile);
-    sector = directory->Find(name);
+
+    while (true) {
+        token = strtok(NULL, "/");
+        if (token == NULL) {
+            break;
+        }
+        
+        // subDir header sector number
+        sector = directory->Find(prevToken);
+
+        DEBUG(dbgFile, prevToken << " at sector num " << sector);
+
+        OpenFile* subDirFile = new OpenFile(sector);
+        directory->FetchFrom(subDirFile);
+        currDirFile = subDirFile;
+
+        prevToken = token;
+    }
+
+    DEBUG(dbgFile, "fileName: " << prevToken);
+
+    directory = new Directory(NumDirEntries);
+    directory->FetchFrom(currDirFile);
+    sector = directory->Find(prevToken);
     if (sector == -1)
     {
         delete directory;
@@ -290,10 +450,10 @@ bool FileSystem::Remove(char *name)
 
     fileHdr->Deallocate(freeMap); // remove data blocks
     freeMap->Clear(sector);       // remove header block
-    directory->Remove(name);
+    directory->Remove(prevToken);
 
     freeMap->WriteBack(freeMapFile);     // flush to disk
-    directory->WriteBack(directoryFile); // flush to disk
+    directory->WriteBack(currDirFile); // flush to disk
     delete fileHdr;
     delete directory;
     delete freeMap;
@@ -305,12 +465,98 @@ bool FileSystem::Remove(char *name)
 // 	List all the files in the file system directory.
 //----------------------------------------------------------------------
 
-void FileSystem::List()
+// void FileSystem::List()
+void FileSystem::List(char *name)
 {
     Directory *directory = new Directory(NumDirEntries);
-
     directory->FetchFrom(directoryFile);
+
+    // MP4
+    char *token = strtok(name, "/");
+    int sector;
+    OpenFile* currDirFile = directoryFile;
+
+    while (true) {
+        if (token == NULL) {
+            break;
+        }
+
+        sector = directory->Find(token);
+
+        DEBUG(dbgFile, token << " at sector num " << sector);
+
+        OpenFile* subDirFile = new OpenFile(sector);
+        directory->FetchFrom(subDirFile);
+
+        token = strtok(NULL, "/");
+    }
+
     directory->List();
+    delete directory;
+}
+
+void FileSystem::RecursiveList(char *name)
+{
+    Directory *directory = new Directory(NumDirEntries);
+    directory->FetchFrom(directoryFile);
+
+    // MP4
+    char *token = strtok(name, "/");
+    int sector;
+    OpenFile* currDirFile = directoryFile;
+
+    while (true) {
+        if (token == NULL) {
+            break;
+        }
+
+        sector = directory->Find(token);
+
+        DEBUG(dbgFile, token << " at sector num " << sector);
+
+        OpenFile* subDirFile = new OpenFile(sector);
+        directory->FetchFrom(subDirFile);
+
+        token = strtok(NULL, "/");
+    }
+
+    directory->RecursiveList(0);
+    delete directory;
+}
+
+void FileSystem::RecursiveRemove(char *name) 
+{
+    Directory *directory = new Directory(NumDirEntries);
+    directory->FetchFrom(directoryFile);
+
+    // MP4
+    char *token = strtok(name, "/");
+    int sector;
+    char *prevToken = token;
+    OpenFile *currDirFile = directoryFile;
+
+    while (true) {
+        token = strtok(NULL, "/");
+        if (token == NULL) {
+            break;
+        }
+        
+        // subDir header sector number
+        sector = directory->Find(prevToken);
+        
+        DEBUG(dbgFile, prevToken << " at sector num " << sector);
+
+        OpenFile* subDirFile = new OpenFile(sector);
+        directory->FetchFrom(subDirFile);
+        currDirFile = subDirFile;
+
+        prevToken = token;
+
+    }
+
+    DEBUG(dbgFile, "file/Directory to delete: " << prevToken);
+    directory->RecursiveRemove(prevToken, freeMapFile, currDirFile);
+
     delete directory;
 }
 

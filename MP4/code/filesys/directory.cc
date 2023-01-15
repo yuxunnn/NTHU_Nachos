@@ -24,6 +24,8 @@
 #include "filehdr.h"
 #include "directory.h"
 
+#include "filesys.h"
+
 //----------------------------------------------------------------------
 // Directory::Directory
 // 	Initialize a directory; initially, the directory is completely
@@ -125,7 +127,7 @@ int Directory::Find(char *name)
 //	"newSector" -- the disk sector containing the added file's header
 //----------------------------------------------------------------------
 
-bool Directory::Add(char *name, int newSector)
+bool Directory::Add(char *name, int newSector, bool isDir)
 {
     if (FindIndex(name) != -1)
         return FALSE;
@@ -134,6 +136,7 @@ bool Directory::Add(char *name, int newSector)
         if (!table[i].inUse)
         {
             table[i].inUse = TRUE;
+            table[i].isDir = isDir;
             strncpy(table[i].name, name, FileNameMaxLen);
             table[i].sector = newSector;
             return TRUE;
@@ -166,9 +169,92 @@ bool Directory::Remove(char *name)
 
 void Directory::List()
 {
-    for (int i = 0; i < tableSize; i++)
-        if (table[i].inUse)
-            printf("%s\n", table[i].name);
+    // for (int i = 0; i < tableSize; i++)
+    //     if (table[i].inUse){
+    //         printf("%s\n", table[i].name);
+    //     }
+
+    for (int i = 0; i < tableSize; i++){
+        if (table[i].inUse){
+            // MP4
+            char type = table[i].isDir ? 'D' : 'F';
+            printf("[%c]: %s\n", type, table[i].name);
+        }
+    }
+}
+
+void Directory::RecursiveList(int level)
+{
+    Directory *subDir = new Directory(NumDirEntries);
+    OpenFile *subDirFile;
+
+    for (int i = 0; i < tableSize; i++){
+        if (table[i].inUse){
+            if (table[i].isDir) {
+                for (int k = 0; k < level; k++) {
+                    printf("  ");
+                }
+
+                printf("[D]: %s\n", table[i].name);
+
+                subDirFile = new OpenFile(table[i].sector);
+                subDir->FetchFrom(subDirFile);
+                subDir->RecursiveList(level+1);
+
+            }else {
+                for (int k = 0; k < level; k++) {
+                    printf("  ");
+                }
+                printf("[F]: %s\n", table[i].name);
+            }
+        }
+    }
+}
+
+void Directory::RecursiveRemove(char *name, OpenFile* freeMapFile, OpenFile* dirFile)
+{
+    PersistentBitmap *freeMap = new PersistentBitmap(freeMapFile, NumSectors);
+    FileHeader *fileHdr;
+
+    FileHeader *subDirHdr = new FileHeader;
+    OpenFile *subDirFile;
+    Directory *subDir = new Directory(NumDirEntries);
+
+    int index = FindIndex(name);
+
+    if (table[index].isDir) {
+        subDirHdr->FetchFrom(table[index].sector);
+        subDirFile = new OpenFile(table[index].sector);
+        subDir->FetchFrom(subDirFile);        
+
+        for (int i = 0; i < subDir->tableSize; i++) {
+            if (subDir->table[i].inUse) {
+                subDir->RecursiveRemove(subDir->table[i].name, freeMapFile, subDirFile);
+            }
+        }
+
+        int sector = table[index].sector;
+
+        subDirHdr->Deallocate(freeMap); // remove data blocks
+        freeMap->Clear(sector);       // remove header block
+        this->Remove(name);
+
+        freeMap->WriteBack(freeMapFile);
+        WriteBack(dirFile);
+    }
+    else {
+        int sector = table[index].sector;
+
+        fileHdr = new FileHeader;
+        fileHdr->FetchFrom(sector);
+
+        fileHdr->Deallocate(freeMap); // remove data blocks
+        freeMap->Clear(sector);       // remove header block
+        this->Remove(name);
+
+        freeMap->WriteBack(freeMapFile);     // flush to disk
+        WriteBack(dirFile); // flush to disk
+    }
 }
 
 //----------------------------------------------------------------------
